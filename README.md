@@ -6,7 +6,7 @@ To run this project:
 <br> 2) Open virtual env
 <br>```source server/bin/activate```
 <br> 3) Download packages
-<br>```pip install ...```
+<br>```pip install -r requirements.txt```
 <br> 4) Run Go ...
 <br>```go mod tidy```
 <br> 5) Run Python script
