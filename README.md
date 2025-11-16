@@ -4,7 +4,7 @@ To run this project:
 <br> 1) Create a Python virtual env
 <br>```python3 -m venv server```
 <br> 2) Open virtual env
-<br>```python3 -m venv server```
+<br>```source server/bin/activate```
 <br> 3) Download packages
 <br>```pip install ...```
 <br> 4) Run Go ...
@@ -14,4 +14,4 @@ To run this project:
 <br> 6) Run Go server
 <br>``` go run main.go```
 <br> 7) Open dashboard
-<br>```http://127.0.0.1:8080/```# webcam_server
+<br>```http://127.0.0.1:8080/```
