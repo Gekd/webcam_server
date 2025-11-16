@@ -2,6 +2,7 @@ package detector
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"mime/multipart"
@@ -32,24 +33,26 @@ func New(baseURL string) *Client {
 	return &Client{
 		baseURL: baseURL,
 		http: &http.Client{
-			Timeout: 10 * time.Second,
+			Timeout: 10 * time.Second, // per-request ctx will dominate
 		},
 	}
 }
 
-func (c *Client) DetectJPEG(jpeg []byte, conf, iou float64) ([]Box, error) {
+// DetectJPEGCtx posts a JPEG frame with context (for tight timeouts).
+func (c *Client) DetectJPEGCtx(ctx context.Context, jpeg []byte, conf, iou float64) ([]Box, error) {
 	var body bytes.Buffer
 	w := multipart.NewWriter(&body)
 	fw, err := w.CreateFormFile("file", "frame.jpg")
 	if err != nil {
 		return nil, err
 	}
-	if _, err = fw.Write(jpeg); err != nil {
+	if _, err := fw.Write(jpeg); err != nil {
 		return nil, err
 	}
 	_ = w.Close()
 
-	req, err := http.NewRequest("POST", fmt.Sprintf("%s/detect?conf=%g&iou=%g", c.baseURL, conf, iou), &body)
+	req, err := http.NewRequestWithContext(ctx, "POST",
+		fmt.Sprintf("%s/detect?conf=%g&iou=%g", c.baseURL, conf, iou), &body)
 	if err != nil {
 		return nil, err
 	}
@@ -66,4 +69,11 @@ func (c *Client) DetectJPEG(jpeg []byte, conf, iou float64) ([]Box, error) {
 		return nil, err
 	}
 	return out.Boxes, nil
+}
+
+// Backward-compatible helper without context.
+func (c *Client) DetectJPEG(jpeg []byte, conf, iou float64) ([]Box, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+	defer cancel()
+	return c.DetectJPEGCtx(ctx, jpeg, conf, iou)
 }
