@@ -1,0 +1,11 @@
+
+*.md
+models/
+*.jpg
+*.png
+venv/
+__pycache__/
+dist/
+build/
+go/
+.pt

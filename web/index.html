@@ -1,0 +1,112 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>MultiCam YOLO</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+    body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background: #111; color: #eee; }
+    header { padding: 10px 16px; background: #222; display:flex; align-items:center; justify-content:space-between; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(320px,1fr)); gap: 10px; padding: 10px; }
+    .panel { background:#000; border:1px solid #333; border-radius:8px; overflow:hidden; }
+    .panel header { background:#1b1b1b; padding:8px 12px; font-size:14px; color:#bbb; display:flex; align-items:center; justify-content:space-between; }
+    .panel img { width: 100%; height: auto; display:block; background:#000; }
+    .controls { display:flex; gap:8px; }
+    .btn {
+      font: inherit; font-size: 12px; color:#ddd; background:#2a2a2a; border:1px solid #444; padding:4px 8px; border-radius:4px; cursor:pointer;
+    }
+    .btn:hover { background:#333; }
+    .status { font-size: 12px; color:#8aa; }
+    .footer { padding: 10px; color:#888; font-size:12px; text-align:center; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1 style="margin:0;font-size:18px;">MultiCam YOLO</h1>
+    <div class="status" id="statusText">Ready</div>
+  </header>
+
+  <div class="grid">
+    {{range .Cameras}}
+    <div class="panel" data-cam="{{.ID}}">
+      <header>
+        <div>{{.ID}}</div>
+        <div class="controls">
+          <button class="btn" data-action="reload" data-id="{{.ID}}">Reload</button>
+          <button class="btn" data-action="snapshot" data-id="{{.ID}}">Snapshot</button>
+          <a class="btn" href="/stream/{{.ID}}.mjpg" target="_blank" rel="noopener">Open</a>
+        </div>
+      </header>
+      <img id="cam-{{.ID}}" alt="{{.ID}}" src="/stream/{{.ID}}.mjpg">
+    </div>
+    {{end}}
+  </div>
+
+  <div class="footer">
+    MJPEG streams auto-reconnect on error. Snapshot button shows the latest single frame.
+  </div>
+
+  <script>
+    // Helper: add a cache-busting query param
+    function bust(url) {
+      const u = new URL(url, window.location.origin);
+      u.searchParams.set('_', Date.now().toString());
+      return u.toString();
+    }
+
+    // Attach onerror handlers to auto-reconnect dropped MJPEG streams.
+    function attachHandlers() {
+      const imgs = document.querySelectorAll('.panel img[id^="cam-"]');
+      imgs.forEach(img => {
+        // Avoid adding multiple handlers
+        if (img.dataset.bound === '1') return;
+        img.dataset.bound = '1';
+
+        img.addEventListener('error', () => {
+          // Try to reconnect after a short delay with cache-bust
+          const id = img.id.replace('cam-','');
+          const src = `/stream/${id}.mjpg`;
+          setTimeout(() => {
+            img.src = bust(src);
+          }, 1000);
+        });
+
+        // Optional: periodic keepalive rebinding to reduce stale connections (disabled by default)
+        // setInterval(() => { const id = img.id.replace('cam-',''); img.src = bust(`/stream/${id}.mjpg`); }, 60_000);
+      });
+    }
+
+    // Controls: Reload stream or open a snapshot in a new tab.
+    function attachControls() {
+      document.addEventListener('click', (ev) => {
+        const btn = ev.target.closest('button.btn');
+        if (!btn) return;
+        const action = btn.dataset.action;
+        const id = btn.dataset.id;
+        if (!action || !id) return;
+
+        if (action === 'reload') {
+          const img = document.getElementById(`cam-${id}`);
+          if (img) img.src = bust(`/stream/${id}.mjpg`);
+        } else if (action === 'snapshot') {
+          window.open(bust(`/snapshot/${id}.jpg`), '_blank', 'noopener');
+        }
+      });
+    }
+
+    // Update a small status text with count of active panels
+    function updateStatus() {
+      const count = document.querySelectorAll('.panel img').length;
+      const el = document.getElementById('statusText');
+      if (el) el.textContent = `Cameras: ${count}`;
+    }
+
+    attachHandlers();
+    attachControls();
+    updateStatus();
+  </script>
+</body>
+</html>
